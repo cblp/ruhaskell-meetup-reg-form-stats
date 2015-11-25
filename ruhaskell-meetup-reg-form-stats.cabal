@@ -1,0 +1,22 @@
+name:                ruhaskell-meetup-reg-form-stats
+version:             0.1.0.0
+synopsis:            Simple project template from stack
+description:         Please see README.md
+homepage:            http://github.com/githubuser/ruhakell-meetup-reg-form-stats#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Author name here
+maintainer:          example@example.com
+copyright:           2010 Author Here
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+executable exe
+    build-depends:    base        >= 4.7    && < 5
+                    , containers
+                    , split
+    default-language: Haskell2010
+    ghc-options:      -Wall
+    hs-source-dirs:   src
+    main-is:          Main.hs
