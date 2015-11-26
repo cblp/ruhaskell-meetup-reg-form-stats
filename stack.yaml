@@ -1,6 +1,1 @@
-resolver: nightly-2015-11-22
-packages: [.]
-extra-deps:
-  - gogol-0.0.1
-  - gogol-core-0.0.1
-  - gogol-drive-0.0.1
+resolver: lts-3.15
