@@ -8,6 +8,7 @@ import Data.Map           as Map
 import Data.Monoid        ( (<>) )
 import Data.Set           as Set
 import Data.Typeable      ( Typeable )
+import Text.Nicify        ( nicify )
 
 data Answer = Answer  { name :: String
                       , email :: String
@@ -107,7 +108,7 @@ stats answers =
     in  Stats { namesAndEmailsAreUnique, haskellLevelDistribition }
 
 main :: IO ()
-main = interact $ readAnswers >>> stats >>> showLn
+main = interact $ readAnswers >>> stats >>> showLn >>> nicify
 
 showLn :: Show a => a -> String
 showLn = show >>> pure >>> unlines
