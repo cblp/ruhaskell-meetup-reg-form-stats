@@ -2,14 +2,58 @@
 
 import Control.Arrow      ( (>>>) )
 import Control.Exception  ( Exception, throw )
+import Data.List          ( intercalate )
 import Data.List.Split    ( splitOn, wordsBy )
+import Data.Map           as Map
 import Data.Monoid        ( (<>) )
 import Data.Set           as Set
 import Data.Typeable      ( Typeable )
 
-data Answer = Answer { name :: String, email :: String }
+data Answer = Answer  { name :: String
+                      , email :: String
+                      , haskellLevel :: Maybe HaskellLevel
+                      }
 
-data Stats = Stats { namesAndEmailsAreUnique :: Bool }
+newtype Distribution a = Distribution (Map a Integer)
+
+instance Show a => Show (Distribution a) where
+    show (Distribution m) =
+        let total = sum $ Map.elems m
+        in  concat
+                [ "["
+                , intercalate ", "
+                      [ show k <> " = " <> show p <> "%"
+                      | (k, v) <- Map.toList m
+                      , let p = if total == 0 then 0 else v * 100 // total
+                      ]
+                , "]"
+                ]
+      where
+        (//) :: Integer -> Integer -> Integer
+        x // y = round (fromIntegral x / fromIntegral y :: Double)
+        infixl 7 //
+
+data HaskellLevel = Curious | Learning | Professional | Expert
+    deriving (Eq, Ord, Show)
+
+readHaskellLevel :: String -> String -> Maybe HaskellLevel
+readHaskellLevel _ ""                     = Nothing
+readHaskellLevel _ "интересующийся"       = Just Curious
+readHaskellLevel _ "изучающий"            = Just Learning
+readHaskellLevel _ "начинающий"           = Just Learning
+readHaskellLevel _ "профессионал (знаю достаточно для практического применения)"
+                                          = Just Professional
+readHaskellLevel _ "эксперт (знаю много)" = Just Expert
+readHaskellLevel email s =
+    error $ concat  [ "readHaskellLevel: can't understand level \""
+                    , s
+                    , "\" for user "
+                    , email
+                    ]
+
+data Stats = Stats  { namesAndEmailsAreUnique :: Bool
+                    , haskellLevelDistribition :: Distribution HaskellLevel
+                    }
     deriving Show
 
 type Header = [String]
@@ -17,8 +61,9 @@ type Header = [String]
 readAnswer :: Int -> String -> Answer
 readAnswer lineNo tsvLine =
     case splitOn "\t" tsvLine of
-        _ : name : email : _ ->
-            Answer {name, email}
+        _ : name : email : haskellLevelStr : _ ->
+            let haskellLevel = readHaskellLevel email haskellLevelStr
+            in  Answer {name, email, haskellLevel}
         badFields ->
             error $ "cannot read line " <> show badFields <> " at " <> show lineNo
 
@@ -54,7 +99,12 @@ stats :: [Answer] -> Stats
 stats answers =
     let namesAndEmailsAreUnique =
             areUnique [(name, email) | Answer{name, email} <- answers]
-    in  Stats { namesAndEmailsAreUnique }
+        haskellLevelDistribition = Distribution $
+            Map.fromListWith (+)  [ (hl, 1)
+                                  | Answer{haskellLevel} <- answers
+                                  , Just hl <- pure haskellLevel
+                                  ]
+    in  Stats { namesAndEmailsAreUnique, haskellLevelDistribition }
 
 main :: IO ()
 main = interact $ readAnswers >>> stats >>> showLn
