@@ -52,7 +52,8 @@ readHaskellLevel email s =
                     , email
                     ]
 
-data Stats = Stats  { namesAndEmailsAreUnique :: Bool
+data Stats = Stats  { count :: Int
+                    , namesAndEmailsAreUnique :: Bool
                     , haskellLevelDistribition :: Distribution HaskellLevel
                     }
     deriving Show
@@ -98,14 +99,15 @@ assertEqual expected got x =
 
 stats :: [Answer] -> Stats
 stats answers =
-    let namesAndEmailsAreUnique =
+    let count = length answers
+        namesAndEmailsAreUnique =
             areUnique [(name, email) | Answer{name, email} <- answers]
         haskellLevelDistribition = Distribution $
             Map.fromListWith (+)  [ (hl, 1)
                                   | Answer{haskellLevel} <- answers
                                   , Just hl <- pure haskellLevel
                                   ]
-    in  Stats { namesAndEmailsAreUnique, haskellLevelDistribition }
+    in  Stats { count, namesAndEmailsAreUnique, haskellLevelDistribition }
 
 main :: IO ()
 main = interact $ readAnswers >>> stats >>> showLn >>> nicify
