@@ -1,18 +1,22 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, TupleSections #-}
 
-import Control.Arrow      ( (>>>) )
-import Control.Exception  ( Exception, throw )
-import Data.List          ( intercalate )
-import Data.List.Split    ( splitOn, wordsBy )
-import Data.Map           as Map
-import Data.Monoid        ( (<>) )
-import Data.Set           as Set
-import Data.Typeable      ( Typeable )
-import Text.Nicify        ( nicify )
+import            Control.Arrow     ( (>>>) )
+import            Control.Exception ( Exception, throw )
+import            Data.List         ( intercalate )
+import            Data.List.Split   ( splitOn, wordsBy )
+import            Data.Map          ( Map )
+import qualified  Data.Map          as Map
+import            Data.Maybe        ( mapMaybe )
+import            Data.Monoid       ( (<>) )
+import            Data.Set          ( Set )
+import qualified  Data.Set          as Set
+import            Data.Typeable     ( Typeable )
+import            Text.Nicify       ( nicify )
 
 data Answer = Answer  { name :: String
                       , email :: String
                       , haskellLevel :: Maybe HaskellLevel
+                      , expectations :: Set Expectation
                       }
 
 newtype Distribution a = Distribution (Map a Integer)
@@ -20,7 +24,7 @@ newtype Distribution a = Distribution (Map a Integer)
 instance Show a => Show (Distribution a) where
     show (Distribution m) =
         let total = sum $ Map.elems m
-        in  concat
+        in  mconcat
                 [ "["
                 , intercalate ", "
                       [ show k <> " = " <> show p <> "%"
@@ -37,24 +41,45 @@ instance Show a => Show (Distribution a) where
 data HaskellLevel = Curious | Learning | Professional | Expert
     deriving (Eq, Ord, Show)
 
-readHaskellLevel :: String -> String -> Maybe HaskellLevel
-readHaskellLevel _ ""                     = Nothing
-readHaskellLevel _ "интересующийся"       = Just Curious
-readHaskellLevel _ "изучающий"            = Just Learning
-readHaskellLevel _ "начинающий"           = Just Learning
-readHaskellLevel _ "профессионал (знаю достаточно для практического применения)"
-                                          = Just Professional
-readHaskellLevel _ "эксперт (знаю много)" = Just Expert
-readHaskellLevel email s =
-    error $ concat  [ "readHaskellLevel: can't understand level \""
+distribution :: Ord a => [a] -> Distribution a
+distribution = Distribution . Map.fromListWith (+) . fmap (, 1)
+
+readHaskellLevel :: String -> Maybe HaskellLevel
+readHaskellLevel ""                     = Nothing
+readHaskellLevel "интересующийся"       = Just Curious
+readHaskellLevel "изучающий"            = Just Learning
+readHaskellLevel "начинающий"           = Just Learning
+readHaskellLevel "профессионал (знаю достаточно для практического применения)"
+                                        = Just Professional
+readHaskellLevel "эксперт (знаю много)" = Just Expert
+readHaskellLevel s =
+    error $ mconcat [ "readHaskellLevel: can't understand level \""
                     , s
-                    , "\" for user "
-                    , email
+                    , "\""
                     ]
+
+data Expectation = ShareKnowledge
+    deriving (Eq, Ord, Show)
+
+readExpectations :: String -> Set Expectation
+readExpectations "" = Set.empty
+readExpectations "Рассказать про создание хранилища для баз данных. Да так, чтобы и быстро работало, и было надёжным и с ума не сойти, реализуя."
+                    = Set.fromList [ShareKnowledge]
+readExpectations s =
+    let ss = splitOn " и " s
+        n = length ss
+    in  case n of
+            1 -> error $ mconcat
+                [ "readExpectations: can't understand expectations \""
+                , s
+                , "\""
+                ]
+            _ -> Set.unions $ fmap readExpectations ss
 
 data Stats = Stats  { count :: Int
                     , namesAndEmailsAreUnique :: Bool
-                    , haskellLevelDistribition :: Distribution HaskellLevel
+                    , haskellLevelDist :: Distribution HaskellLevel
+                    , expectationDist :: Distribution Expectation
                     }
     deriving Show
 
@@ -63,9 +88,10 @@ type Header = [String]
 readAnswer :: Int -> String -> Answer
 readAnswer lineNo tsvLine =
     case splitOn "\t" tsvLine of
-        _ : name : email : haskellLevelStr : _ ->
-            let haskellLevel = readHaskellLevel email haskellLevelStr
-            in  Answer {name, email, haskellLevel}
+        _ : name : email : haskellLevelStr : expectationsStr : _ ->
+            let haskellLevel = readHaskellLevel haskellLevelStr
+                expectations = readExpectations expectationsStr
+            in  Answer {name, email, haskellLevel, expectations}
         badFields ->
             error $ "cannot read line " <> show badFields <> " at " <> show lineNo
 
@@ -102,12 +128,14 @@ stats answers =
     let count = length answers
         namesAndEmailsAreUnique =
             areUnique [(name, email) | Answer{name, email} <- answers]
-        haskellLevelDistribition = Distribution $
-            Map.fromListWith (+)  [ (hl, 1)
-                                  | Answer{haskellLevel} <- answers
-                                  , Just hl <- pure haskellLevel
-                                  ]
-    in  Stats { count, namesAndEmailsAreUnique, haskellLevelDistribition }
+        haskellLevelDist = distribution $ mapMaybe haskellLevel answers
+        expectationDist = distribution $
+            concatMap (Set.toList . expectations) answers
+    in  Stats { count
+              , namesAndEmailsAreUnique
+              , haskellLevelDist
+              , expectationDist
+              }
 
 main :: IO ()
 main = interact $ readAnswers >>> stats >>> showLn >>> nicify
