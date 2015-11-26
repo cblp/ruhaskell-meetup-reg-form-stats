@@ -58,13 +58,15 @@ readHaskellLevel s =
                     , "\""
                     ]
 
-data Expectation = ShareKnowledge
+data Expectation = GetKnowledge | MeetHaskellists | ShareKnowledge
     deriving (Eq, Ord, Show)
 
 readExpectations :: String -> Set Expectation
 readExpectations "" = Set.empty
-readExpectations "Рассказать про создание хранилища для баз данных. Да так, чтобы и быстро работало, и было надёжным и с ума не сойти, реализуя."
-                    = Set.fromList [ShareKnowledge]
+readExpectations "Рассказать про создание хранилища для баз данных. Да так, чтобы и быстро работало, и было надёжным и с ума не сойти, реализуя." =
+    Set.singleton ShareKnowledge
+readExpectations "встретить интересных людей" = Set.singleton MeetHaskellists
+readExpectations "услышать познавательных докладов" = Set.singleton GetKnowledge
 readExpectations s =
     let ss = splitOn " и " s
         n = length ss

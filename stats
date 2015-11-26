@@ -1,1 +1,1 @@
-stack exec --package=. exe < /tmp/answers.tsv
+stack exec --package=. exe < ~/Yandex.Disk/RuHaskell/2015_Winter/answers.tsv
