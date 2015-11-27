@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns, TupleSections #-}
 
 import            Control.Arrow     ( (>>>) )
+import            Control.Monad     ( (>=>) )
 import            Control.Exception ( Exception, throw )
 import            Data.List         ( intercalate )
 import            Data.List.Split   ( splitOn, wordsBy )
@@ -63,20 +64,33 @@ data Expectation = GetKnowledge | MeetHaskellists | ShareKnowledge
 
 readExpectations :: String -> Set Expectation
 readExpectations "" = Set.empty
-readExpectations "Рассказать про создание хранилища для баз данных. Да так, чтобы и быстро работало, и было надёжным и с ума не сойти, реализуя." =
-    Set.singleton ShareKnowledge
-readExpectations "встретить интересных людей" = Set.singleton MeetHaskellists
-readExpectations "услышать познавательных докладов" = Set.singleton GetKnowledge
-readExpectations s =
-    let ss = splitOn " и " s
-        n = length ss
-    in  case n of
-            1 -> error $ mconcat
-                [ "readExpectations: can't understand expectations \""
-                , s
-                , "\""
-                ]
-            _ -> Set.unions $ fmap readExpectations ss
+readExpectations s
+    | s `elem`
+        ["Да так, чтобы", "быстро работало,", "было надёжным", "с ума не сойти, реализуя."]
+      = Set.empty
+    | s `elem`
+        [ "Хочу узнать больше о Haskell"
+        , "услышать познавательных докладов"
+        ]
+      = Set.singleton GetKnowledge
+    | s `elem`
+        [ "встретить интересных людей"
+        , "Познакомиться с хаскелистами, наверняка узнаю много нового для себя!"
+        ]
+      = Set.singleton MeetHaskellists
+    | s `elem`
+        ["Рассказать про создание хранилища для баз данных"]
+      = Set.singleton ShareKnowledge
+    | otherwise
+      = let ss = (splitOn " и " >=> splitOn ". ") s
+            n = length ss
+        in  case n of
+                1 -> error $ mconcat
+                    [ "readExpectations: can't understand expectations \""
+                    , s
+                    , "\""
+                    ]
+                _ -> Set.unions $ fmap readExpectations ss
 
 data Stats = Stats  { count :: Int
                     , namesAndEmailsAreUnique :: Bool
