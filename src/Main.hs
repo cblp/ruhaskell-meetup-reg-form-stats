@@ -2,12 +2,13 @@
 
 import            Control.Arrow     ( (>>>) )
 import            Control.Monad     ( (>=>) )
+import            Control.Monad.Writer ( Writer, tell )
 import            Control.Exception ( Exception, throw )
 import            Data.List         ( intercalate )
 import            Data.List.Split   ( splitOn, wordsBy )
 import            Data.Map          ( Map )
 import qualified  Data.Map          as Map
-import            Data.Maybe        ( mapMaybe )
+import            Data.Maybe        ( catMaybes, mapMaybe )
 import            Data.Monoid       ( (<>) )
 import            Data.Set          ( Set )
 import qualified  Data.Set          as Set
@@ -62,8 +63,11 @@ readHaskellLevel s =
 data Expectation = Contacting | Food | GetKnowledge | HaveFun | ShareKnowledge
     deriving (Eq, Ord, Show)
 
-readExpectations :: String -> Set Expectation
-readExpectations "" = Set.empty
+data Problem = BadFields [String] | BadExpectation String
+    deriving Show
+
+readExpectations :: String -> Writer [Problem] (Set Expectation)
+readExpectations "" = pure Set.empty
 readExpectations s
     | s `elem`
         [ ")"
@@ -89,7 +93,7 @@ readExpectations s
         , "что используют"
         , "чтобы"
         ]
-      = Set.empty
+      = pure Set.empty
     | s `elem`
         [ "болтовня"
         , " Возможность познакомиться заманчива"
@@ -109,10 +113,10 @@ readExpectations s
         , "Увидеть живых программистов на Haskell"
         , "узнать состояние дел в ру сообществе"
         ]
-      = Set.singleton Contacting
+      = pure $ Set.singleton Contacting
     | s `elem`
         ["печеньки"]
-      = Set.singleton Food
+      = pure $ Set.singleton Food
     | s `elem`
         [ "в очередной раз послушать про монады"
         , "где он используется"
@@ -141,23 +145,21 @@ readExpectations s
         , "Хочу узнать больше о функциональном программировании"
         , "что сейчас впринципе происходит в мире так"
         ]
-      = Set.singleton GetKnowledge
+      = pure $ Set.singleton GetKnowledge
     | s `elem`
         ["получить мощный заряд fun'а! :-D"]
-      = Set.singleton HaveFun
+      = pure $ Set.singleton HaveFun
     | s `elem`
         ["Рассказать про создание хранилища для баз данных"]
-      = Set.singleton ShareKnowledge
+      = pure $ Set.singleton ShareKnowledge
     | otherwise
       = let ss = (splitOn ". " >=> splitOn ", " >=> splitOn " и ") s
             n = length ss
         in  case n of
-                1 -> error $ mconcat
-                    [ "readExpectations: can't understand expectations \""
-                    , s
-                    , "\""
-                    ]
-                _ -> Set.unions $ fmap readExpectations ss
+                1 -> do
+                    tell [BadExpectation s]
+                    pure Set.empty
+                _ -> Set.unions <$> mapM readExpectations ss
 
 data Stats = Stats  { count :: Int
                     , namesAndEmailsAreUnique :: Bool
@@ -168,24 +170,25 @@ data Stats = Stats  { count :: Int
 
 type Header = [String]
 
-readAnswer :: Int -> String -> Answer
-readAnswer lineNo tsvLine =
+readAnswer :: String -> Writer [Problem] (Maybe Answer)
+readAnswer tsvLine =
     case splitOn "\t" tsvLine of
-        _ : name : email : haskellLevelStr : expectationsStr : _ ->
+        _ : name : email : haskellLevelStr : expectationsStr : _ -> do
             let haskellLevel = readHaskellLevel haskellLevelStr
-                expectations = readExpectations expectationsStr
-            in  Answer {name, email, haskellLevel, expectations}
-        badFields ->
-            error $ "cannot read line " <> show badFields <> " at " <> show lineNo
+            expectations <- readExpectations expectationsStr
+            pure $ Just Answer {name, email, haskellLevel, expectations}
+        badFields -> do
+            tell [BadFields badFields]
+            pure Nothing
 
 readHeader :: String -> Header
 readHeader = splitOn "\t"
 
-readAnswers :: String -> [Answer]
+readAnswers :: String -> Writer [Problem] [Answer]
 readAnswers tsvContent =
     let headerLine : tsvLines = wordsBy (`elem` "\r\n") tsvContent
     in  assertEqual expectedHeader (readHeader headerLine)
-            [readAnswer i line | (i, line) <- zip [1..] tsvLines]
+            (catMaybes <$> mapM readAnswer tsvLines)
   where
     expectedHeader =
         [ "Отметка времени"
@@ -221,7 +224,7 @@ stats answers =
               }
 
 main :: IO ()
-main = interact $ readAnswers >>> stats >>> showLn >>> nicify
+main = interact $ readAnswers >>> fmap stats >>> showLn >>> nicify
 
 showLn :: Show a => a -> String
 showLn = show >>> pure >>> unlines
