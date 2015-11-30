@@ -1,19 +1,19 @@
 {-# LANGUAGE NamedFieldPuns, TupleSections #-}
 
-import            Control.Arrow     ( (>>>) )
-import            Control.Monad     ( (>=>) )
-import            Control.Monad.Writer ( Writer, tell )
-import            Control.Exception ( Exception, throw )
-import            Data.List         ( intercalate )
-import            Data.List.Split   ( splitOn, wordsBy )
-import            Data.Map          ( Map )
-import qualified  Data.Map          as Map
-import            Data.Maybe        ( catMaybes, mapMaybe )
-import            Data.Monoid       ( (<>) )
-import            Data.Set          ( Set )
-import qualified  Data.Set          as Set
-import            Data.Typeable     ( Typeable )
-import            Text.Nicify       ( nicify )
+import            Control.Arrow         ( (>>>) )
+import            Control.Monad         ( (>=>) )
+import            Control.Monad.Writer  ( Writer, tell )
+import            Control.Exception     ( Exception, throw )
+import            Data.List             ( intercalate )
+import            Data.List.Split       ( splitOn, wordsBy )
+import            Data.Map              ( Map )
+import qualified  Data.Map              as Map
+import            Data.Maybe            ( catMaybes, mapMaybe )
+import            Data.Monoid           ( (<>) )
+import            Data.Set              ( Set )
+import qualified  Data.Set              as Set
+import            Data.Typeable         ( Typeable )
+import            Text.Nicify           ( nicify )
 
 data Answer = Answer  { name :: String
                       , email :: String
@@ -60,7 +60,12 @@ readHaskellLevel s =
                     , "\""
                     ]
 
-data Expectation = Contacting | Food | GetKnowledge | HaveFun | ShareKnowledge
+data Expectation  = Contacting
+                  | Food
+                  | GetHired
+                  | GetKnowledge
+                  | HaveFun
+                  | ShareKnowledge
     deriving (Eq, Ord, Show)
 
 data Problem = BadFields [String] | BadExpectation String
@@ -74,14 +79,17 @@ readExpectations s
     | s `elem`
         [ ")"
         , "быстро работало"
+        , "все видео на youtube уже просмотрены"
         , "Да!"
         , "Да так"
         , "Давно слышал о haskell"
+        , "занимаясь хаскеллем"
         , "зачем."
         , "и было надёжным"
         , "как"
         , "которые пишутся на Haskell"
         , "но более или менее продвинулся только после прохождения недавнего курса на stepic.org   Сейчас не очень понятно \"что делать дальше\""
+        , "Не знаю"
         , "Немного программировал на scala"
         , "но не кажется очень вероятной."
         , "реализуя."
@@ -94,33 +102,42 @@ readExpectations s
         , "Хотелось бы узнать где"
         , "что используют"
         , "чтобы"
+        , "чтобы когда-нибудь смочь зарабатывать деньги"
         ]
       = pure Set.empty
     | s `elem`
         [ "болтовня"
         , " Возможность познакомиться заманчива"
         , "встретить интересных людей"
+        , "и себя показать"
+        , "кого-нибудь"
+        , "Людей посмотреть"
         , "наверняка узнаю много нового для себя!"
-        , "Людей посмотреть", "и себя показать"
+        , "Найти единомышленников ))"
         , "Общение"
         , "Поговорить с интересными людьми."
         , "познакомиться"
         , "Познакомиться"
+        , "Познакомиться с людьми"
         , "Познакомиться с реальными Haskell-разработчиками."
         , "Познакомиться с сообществом Хаскел"
         , "Познакомиться с хаскелистами"
         , "Пообщаться"
+        , "пообщаться"
         , "Пообщаться с \"носителями языка\" Haskell"
         , "Пообщаться с профессиональными хаскелистами"
+        , "Развиртуализироваться"
         , "Увидеть живых программистов на Haskell"
         , "узнать состояние дел в ру сообществе"
         ]
       = pure $ Set.singleton Contacting
-    | s `elem`
-        ["печеньки"]
+    | s ==
+        "печеньки"
       = pure $ Set.singleton Food
     | s `elem`
-        [ "в очередной раз послушать про монады"
+        [ "больше узнать о практическом опыте его применения"
+        , "в очередной раз послушать про монады"
+        , "Вдохновиться чем-нибудь"
         , "где он используется"
         , "и надеюсь что доклады на митапе как дадут представление о том"
         , "как используют Haskell для реальных задач."
@@ -131,28 +148,45 @@ readExpectations s
         , "получить информацию о новых технологиях"
         , "пообщаться на технические темы"
         , "Послушать"
+        , "Послушать Зефирова"
         , "Послушать интересные доклады."
         , "послушать интересные штуки."
         , "послушать про использование haskell для решения всякого рода интересных задач"
+        , "Посмотреть где в проде используется данный язык"
+        , "Практических примеров использования Haskell"
         , "просветлиться"
         , "Расширить кругозор"
+        , "решить проблемы" -- FIXME?
         , "узнать"
+        , "узнать.."
+        , "Узнать больше про Haskell"
         , "узнать новости с передовой"
         , "Узнать о системах"
         , "Узнать про FFI"
+        , "Узнать что-нибудь"
         , "Узнать что-нибудь новое из области функционального программирования"
+        , "Узнать что-то новое"
         , "Узнать что-то новое для себя"
         , "услышать познавательных докладов"
         , "Хочу узнать больше о Haskell"
         , "Хочу узнать больше о функциональном программировании"
+        , "что вообще происходит в сообществе"
         , "что сейчас впринципе происходит в мире так"
         ]
       = pure $ Set.singleton GetKnowledge
+    | s == "найти работу."
+      = pure $ Set.singleton GetHired
     | s `elem`
-        ["получить мощный заряд fun'а! :-D"]
+        [ "Лулзов"
+        , "Ощутить особую атмосферу хаскелистов"
+        , "получить мощный заряд fun'а! :-D"
+        , "флейм"
+        ]
       = pure $ Set.singleton HaveFun
     | s `elem`
-        ["Рассказать про создание хранилища для баз данных"]
+        [ "поделиться открытиями"
+        , "Рассказать про создание хранилища для баз данных"
+        ]
       = pure $ Set.singleton ShareKnowledge
     | otherwise
       = let ss = (splitOn ". " >=> splitOn ", " >=> splitOn " и ") s
