@@ -64,7 +64,9 @@ data Expectation = Contacting | Food | GetKnowledge | HaveFun | ShareKnowledge
     deriving (Eq, Ord, Show)
 
 data Problem = BadFields [String] | BadExpectation String
-    deriving Show
+instance Show Problem where
+    show (BadFields fields) = "BadFields " <> show fields
+    show (BadExpectation expec) = "BadExpectation \"" <> expec <> "\""
 
 readExpectations :: String -> Writer [Problem] (Set Expectation)
 readExpectations "" = pure Set.empty
