@@ -21,30 +21,36 @@ data Answer = Answer  { name :: String
                       , expectations :: Set Expectation
                       }
 
-newtype Distribution a = Distribution (Map a Integer)
+data Distribution a = Distribution { total :: Int, parts :: Map a Integer }
 
 instance Show a => Show (Distribution a) where
-    show (Distribution m) =
-        let total = sum $ Map.elems m
-        in  mconcat
-                [ "["
-                , intercalate ", "
-                      [ show k <> " = " <> show p <> "%"
-                      | (k, v) <- Map.toList m
-                      , let p = if total == 0 then 0 else v * 100 // total
-                      ]
-                , "]"
-                ]
+    show Distribution{total, parts} = mconcat
+        [ "["
+        , intercalate ", "
+              [ show k <> " = " <> show p <> "%"
+              | (k, v) <- Map.toList parts
+              , let p = if total == 0 then 0 else v * 100 // total
+              ]
+        , "]"
+        ]
       where
-        (//) :: Integer -> Integer -> Integer
-        x // y = round (fromIntegral x / fromIntegral y :: Double)
+        x // y = round (fromIntegral x / fromIntegral y :: Double) :: Integer
         infixl 7 //
 
 data HaskellLevel = Curious | Learning | Professional | Expert
     deriving (Eq, Ord, Show)
 
-distribution :: Ord a => [a] -> Distribution a
-distribution = Distribution . Map.fromListWith (+) . fmap (, 1)
+distributionExclusive :: Ord a => [a] -> Distribution a
+distributionExclusive xs = Distribution
+    { total = length xs
+    , parts = Map.fromListWith (+) $ fmap (, 1) xs
+    }
+
+distributionInclusive :: Ord a => [Set a] -> Distribution a
+distributionInclusive votes = Distribution
+    { total = length votes
+    , parts = Map.fromListWith (+) $ concatMap (fmap (, 1) . Set.toList) votes
+    }
 
 readHaskellLevel :: String -> Maybe HaskellLevel
 readHaskellLevel ""                     = Nothing
@@ -250,9 +256,8 @@ stats answers =
     let count = length answers
         namesAndEmailsAreUnique =
             areUnique [(name, email) | Answer{name, email} <- answers]
-        haskellLevelDist = distribution $ mapMaybe haskellLevel answers
-        expectationDist = distribution $
-            concatMap (Set.toList . expectations) answers
+        haskellLevelDist = distributionExclusive $ mapMaybe haskellLevel answers
+        expectationDist = distributionInclusive $ map expectations answers
     in  Stats { count
               , namesAndEmailsAreUnique
               , haskellLevelDist
