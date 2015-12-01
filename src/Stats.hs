@@ -24,7 +24,7 @@ stats answers =
         namesAndEmailsAreUnique =
             areUnique [(name, email) | Answer{name, email} <- answers]
         haskellLevelDist = distributionExclusive $ mapMaybe haskellLevel answers
-        expectationDist = distributionInclusive $ map expectations answers
+        expectationDist = distributionInclusive $ mapMaybe expectations answers
     in  Stats { count
               , namesAndEmailsAreUnique
               , haskellLevelDist

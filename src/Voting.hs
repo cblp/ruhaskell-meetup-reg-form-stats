@@ -36,8 +36,8 @@ data Expectation  = Contacting
                   | ShareKnowledge
     deriving (Eq, Ord, Show)
 
-readExpectations :: String -> Writer [Problem] (Set Expectation)
-readExpectations "" = pure Set.empty
+readExpectations :: String -> Writer [Problem] (Maybe (Set Expectation))
+readExpectations "" = pure Nothing
 readExpectations s
     | s `elem`
         [ ")"
@@ -55,10 +55,11 @@ readExpectations s
         , "Не знаю"
         , "Немного программировал на scala"
         , "но не кажется очень вероятной."
-        , "реализуя."
-        , "с которыми сталкиваются промышленные разработчики на полностью функциональных языках программирования."
         , "получить представление о том"
         , "предпринимал несколько попыток изучить"
+        , "реализуя."
+        , "с которыми сталкиваются промышленные разработчики на полностью функциональных языках программирования."
+        , "с которыми общаюсь в чате"
         , "с ума не сойти"
         , "Типа того"
         , "узнать чем живут"
@@ -67,7 +68,7 @@ readExpectations s
         , "чтобы"
         , "чтобы когда-нибудь смочь зарабатывать деньги"
         ]
-      = pure Set.empty
+      = pure $ Just Set.empty
     | s `elem`
         [ "болтовня"
         , " Возможность познакомиться заманчива"
@@ -82,6 +83,7 @@ readExpectations s
         , "познакомиться"
         , "Познакомиться"
         , "Познакомиться с людьми"
+        , "Познакомиться с народом"
         , "Познакомиться с реальными Haskell-разработчиками."
         , "Познакомиться с сообществом Хаскел"
         , "Познакомиться с хаскелистами"
@@ -90,13 +92,14 @@ readExpectations s
         , "Пообщаться с \"носителями языка\" Haskell"
         , "Пообщаться с профессиональными хаскелистами"
         , "Развиртуализироваться"
+        , "Увидеть людей вживую"
         , "Увидеть живых программистов на Haskell"
         , "узнать состояние дел в ру сообществе"
         ]
-      = pure $ Set.singleton Contacting
+      = pure . Just $ Set.singleton Contacting
     | s ==
         "печеньки"
-      = pure $ Set.singleton Food
+      = pure . Just $ Set.singleton Food
     | s `elem`
         [ "больше узнать о практическом опыте его применения"
         , "в очередной раз послушать про монады"
@@ -106,11 +109,13 @@ readExpectations s
         , "как используют Haskell для реальных задач."
         , "какие проблемы с ним возникают"
         , "Побольше узнать о проблемах"
+        , "погрузиться в обстановку"
         , "подскажут чем интересным можно заняться для дальнейшего постижения языка"
         , "...подход к проруби...:*))"
         , "получить информацию о новых технологиях"
         , "пообщаться на технические темы"
         , "Послушать"
+        , "послушать доклады"
         , "Послушать Зефирова"
         , "Послушать интересные доклады."
         , "послушать интересные штуки."
@@ -136,29 +141,29 @@ readExpectations s
         , "что вообще происходит в сообществе"
         , "что сейчас впринципе происходит в мире так"
         ]
-      = pure $ Set.singleton GetKnowledge
+      = pure . Just $ Set.singleton GetKnowledge
     | s == "найти работу."
-      = pure $ Set.singleton GetHired
+      = pure . Just $ Set.singleton GetHired
     | s `elem`
         [ "Лулзов"
         , "Ощутить особую атмосферу хаскелистов"
         , "получить мощный заряд fun'а! :-D"
         , "флейм"
         ]
-      = pure $ Set.singleton HaveFun
+      = pure . Just $ Set.singleton HaveFun
     | s `elem`
         [ "поделиться открытиями"
         , "Рассказать про создание хранилища для баз данных"
         ]
-      = pure $ Set.singleton ShareKnowledge
+      = pure . Just $ Set.singleton ShareKnowledge
     | otherwise
       = let ss = (splitOn ". " >=> splitOn ", " >=> splitOn " и ") s
             n = length ss
         in  case n of
                 1 -> do
                     tell [BadExpectation s]
-                    pure Set.empty
-                _ -> Set.unions <$> mapM readExpectations ss
+                    pure $ Just Set.empty
+                _ -> mconcat <$> mapM readExpectations ss
 
 type Header = [String]
 
@@ -168,7 +173,7 @@ readHeader = splitOn "\t"
 data Answer = Answer  { name :: String
                       , email :: String
                       , haskellLevel :: Maybe HaskellLevel
-                      , expectations :: Set Expectation
+                      , expectations :: Maybe (Set Expectation)
                       }
 
 readAnswer :: String -> Writer [Problem] (Maybe Answer)
