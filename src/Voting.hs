@@ -7,6 +7,7 @@ import Common ( Problem(..), assertEqual )
 import            Control.Monad         ( (>=>) )
 import            Control.Monad.Writer  ( Writer, tell )
 import            Data.List.Split       ( splitOn, wordsBy )
+import qualified  Data.Map              as Map
 import            Data.Maybe            ( catMaybes )
 import            Data.Set              ( Set )
 import qualified  Data.Set              as Set
@@ -185,6 +186,7 @@ data Answer = Answer  { name :: String
                       , haskellLevel :: Maybe HaskellLevel
                       , expectations :: Maybe (Set Expectation)
                       }
+    deriving Show
 
 readAnswer :: String -> Writer [Problem] (Maybe Answer)
 readAnswer tsvLine =
@@ -201,7 +203,7 @@ readAnswers :: String -> Writer [Problem] [Answer]
 readAnswers tsvContent =
     let headerLine : tsvLines = wordsBy (`elem` "\r\n") tsvContent
     in  assertEqual expectedHeader (readHeader headerLine)
-            (catMaybes <$> mapM readAnswer tsvLines)
+            (dedup email . catMaybes <$> mapM readAnswer tsvLines)
   where
     expectedHeader =
         [ "Отметка времени"
@@ -215,3 +217,7 @@ readAnswers tsvContent =
         , "Останетесь ли на неформальные посиделки?"
         , "Где следует проводить посиделки?"
         ]
+
+-- | keep only last element of each collision
+dedup :: Ord b => (a -> b) -> [a] -> [a]
+dedup key xs = Map.elems $ Map.fromListWith (\_ x -> x) [(key x, x) | x <- xs]

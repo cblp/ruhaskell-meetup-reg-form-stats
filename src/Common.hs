@@ -3,14 +3,10 @@
 module Common where
 
 import Control.Exception  ( Exception, throw )
-import Data.Monoid        ( (<>) )
 import Data.Typeable      ( Typeable )
 
 data Problem = BadFields [String] | BadExpectation String
-
-instance Show Problem where
-    show (BadFields fields) = "BadFields " <> show fields
-    show (BadExpectation expec) = "BadExpectation \"" <> expec <> "\""
+    deriving Show
 
 data ExpectationFailed a = ExpectationFailed {expected :: a, got :: a}
     deriving Show
